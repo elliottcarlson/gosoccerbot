@@ -21,12 +21,6 @@ var ctx = context.Background()
 func FindInstantReplay(match *Match, event fifa.EventResponse) {
 	retry.Do(
 		func() error {
-			/*
-				fmt.Println(os.Getenv("REDDIT_CLIENT_USERNAME"))
-				fmt.Println(os.Getenv("REDDIT_CLIENT_PASSWORD"))
-				fmt.Println(os.Getenv("REDDIT_CLIENT_ID"))
-				fmt.Println(os.Getenv("REDDIT_CLIENT_SECRET"))
-			*/
 			var reddit, _ = snoo.NewClient(snoo.Credentials{
 				ID:       os.Getenv("REDDIT_CLIENT_ID"),
 				Secret:   os.Getenv("REDDIT_CLIENT_SECRET"),
@@ -55,52 +49,6 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 			}
 
 			for _, post := range posts {
-				/*
-					if strings.HasPrefix(post.URL, "https://streamff.com/v") {
-						c := colly.NewCollector(
-							colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"),
-						)
-						c.OnHTML("video", func(e *colly.HTMLElement) {
-							fmt.Println(e.ChildAttr("source", "src"))
-							d := colly.NewCollector(
-								colly.MaxBodySize(100 * 1024 * 1024),
-							)
-							d.OnResponse(func(r *colly.Response) {
-								r.Save("media/" + r.FileName())
-
-								slackapi.UploadFile(slack.FileUploadParameters{
-									File:  "media/" + r.FileName(),
-									Title: fmt.Sprintf("Replay of the goal at %s", event.MatchMinute),
-									Channels: []string{
-										"GK619DJ1E",
-									},
-									ThreadTimestamp: match.SlackThreadTs,
-								})
-
-								os.Remove("media/" + r.FileName())
-							})
-							d.OnRequest(func(r *colly.Request) {
-								fmt.Println("Downloading", r.URL)
-							})
-							d.Visit(e.Attr("src"))
-						})
-
-						c.OnResponse(func(r *colly.Response) {
-							spew.Dump(r.Body)
-						})
-						c.OnRequest(func(r *colly.Request) {
-							fmt.Println("!Visiting", r.URL)
-						})
-
-						c.OnError(func(r *colly.Response, err error) {
-							spew.Dump(r.Body)
-							spew.Dump(err)
-						})
-
-						c.Visit(post.URL)
-						return nil
-					}
-				*/
 				if strings.HasPrefix(post.URL, "https://dubz.co/v") ||
 					strings.HasPrefix(post.URL, "https://streamin.me/v") {
 					c := colly.NewCollector(
@@ -154,7 +102,7 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 			return errors.New("none found")
 		},
 		retry.OnRetry(func(n uint, err error) {
-			log.Printf("#%d: %s\n", n, err)
+			log.Printf("Retry #%d: %s\n", n, err)
 		}),
 		retry.Attempts(uint((10*time.Minute)/(15*time.Second))),
 		retry.Delay(15*time.Second),

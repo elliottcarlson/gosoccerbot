@@ -282,13 +282,6 @@ func checkMatchEvents() {
 						false,
 					),
 				)
-				/*
-					if method, ok := eventMap[event.Type]; ok {
-						if method != nil {
-							return
-						}
-					}
-				*/
 			}
 		}
 	}

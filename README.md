@@ -31,6 +31,8 @@ value in the .env file under `SLACK_OUTPUT_CHANNEL`. For the `SLACK_ADMIN_USER_I
 want to visit your Slack profile (reached by right clicking your name), and under the three dot
 menu, you can Copy member ID.
 
+Make sure you invite the bot to the intended channel for it to be able to post there!
+
 Finally, you can upload the images in the "images" directory as emoji using the default names of
 the files to your Slack instance to ensure the bot has all the appropriate emojis in place.
 
@@ -52,4 +54,4 @@ With go 1.17+ installed, simply run
 go run .
 ```
 
-Any errors should be available on ther terminal.
+Any errors should be available on the terminal.
