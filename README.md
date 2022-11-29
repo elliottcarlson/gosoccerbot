@@ -24,6 +24,13 @@ Once installed, you will be redirected to the "OAuth & Permissions" page, and no
 will be available for the workspace - copy this xoxb- token and paste it in your .env file as
 the `SLACK_BOT_TOKEN`.
 
+Next you want to configure the .env files values for where to send match results to; In Slack
+right click the channel from your Channels list that you want to send match data to, select 
+"View channel details", and in the popup scroll down and you can find the Channel ID; paste this
+value in the .env file under `SLACK_OUTPUT_CHANNEL`. For the `SLACK_ADMIN_USER_ID`, you will
+want to visit your Slack profile (reached by right clicking your name), and under the three dot
+menu, you can Copy member ID.
+
 Finally, you can upload the images in the "images" directory as emoji using the default names of
 the files to your Slack instance to ensure the bot has all the appropriate emojis in place.
 
