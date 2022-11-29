@@ -71,7 +71,7 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 
 							fmt.Printf("Uploading %s\n", title)
 
-							slackapi.UploadFile(slack.FileUploadParameters{
+							_, err = slackapi.UploadFile(slack.FileUploadParameters{
 								File:  "media/" + r.FileName(),
 								Title: title,
 								Channels: []string{
@@ -80,6 +80,9 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 								ThreadTimestamp: match.SlackThreadTs,
 							})
 
+							if err != nil {
+								fmt.Println(err)
+							}
 							os.Remove("media/" + r.FileName())
 						})
 						d.OnRequest(func(r *colly.Request) {
