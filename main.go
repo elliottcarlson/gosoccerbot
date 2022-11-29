@@ -111,6 +111,33 @@ var eventMap = map[fifa.MatchEvent]func(match *Match, event fifa.EventResponse){
 }
 
 func main() {
+	/*
+		matches["17/255711/285063/400235456"] = &Match{
+			Competition:   "FIFA World Cup™",
+			CompetitionId: "17",
+			SeasonId:      "255711",
+			StageId:       "285063",
+			MatchId:       "400235456",
+			HomeTeam:      "Iran",
+			HomeFlag:      ":flag-ir:",
+			AwayTeam:      "United States",
+			AwayFlag:      ":flag-us:",
+			LastEventTs:   time.Date(2022, 11, 23, 17, 13, 0, 0, time.UTC),
+		}
+
+		data, err := fifaapi.GetMatchData(&fifa.GetMatchDataOptions{
+			CompetitionId: matches["17/255711/285063/400235456"].CompetitionId,
+			SeasonId:      matches["17/255711/285063/400235456"].SeasonId,
+			StageId:       matches["17/255711/285063/400235456"].StageId,
+			MatchId:       matches["17/255711/285063/400235456"].MatchId,
+		})
+		if err != nil {
+			logrus.Debug(err)
+		} else {
+			addTeam(data.HomeTeam)
+			addTeam(data.AwayTeam)
+		}
+	*/
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
@@ -118,7 +145,7 @@ func main() {
 
 	socket := socketmode.New(slackapi)
 	if _, err := slackapi.AuthTest(); err != nil {
-		fmt.Fprintf(os.Stderr, "SLACK_BOT_TOKEN is invalid: %v", err)
+		logrus.Debugf("SLACK_BOT_TOKEN is invalid: %v", err)
 		os.Exit(1)
 	}
 
@@ -166,7 +193,7 @@ func worker() {
 func checkForNewMatches() {
 	current, err := fifaapi.GetCurrentMatches()
 	if err != nil {
-		fmt.Println(err)
+		logrus.Debug(err)
 	}
 	for _, m := range current {
 		if m.CompetitionId != "17" {
@@ -227,7 +254,7 @@ func checkMatchEvents() {
 			match.SlackThreadTs = respTs
 		}
 
-		fmt.Printf("Checking for updates for *%s* v *%s* (_%s_)\n", match.HomeTeam, match.AwayTeam, match.Competition)
+		logrus.Debugf("Checking for updates for *%s* v *%s* (_%s_)\n", match.HomeTeam, match.AwayTeam, match.Competition)
 
 		events, err := fifaapi.GetMatchEvents(&fifa.GetMatchEventOptions{
 			CompetitionId: match.CompetitionId,
@@ -241,7 +268,7 @@ func checkMatchEvents() {
 		}
 
 		for _, event := range events.Events {
-			if event.Timestamp.After(match.LastEventTs) {
+			if event.Timestamp.After(match.LastEventTs) || event.Timestamp.Equal(match.LastEventTs) {
 				if event.Type == 9999 {
 					return
 				}
@@ -296,7 +323,7 @@ func sendError(message string, event fifa.EventResponse) {
 }
 
 func doGoalScore(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doGoalScore: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doGoalScore: %s : %s\n", event.Id, event.Timestamp)
 	if player, ok := players[event.PlayerId]; ok {
 		slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
 			slack.MsgOptionText(
@@ -323,7 +350,7 @@ func doGoalScore(match *Match, event fifa.EventResponse) {
 }
 
 func doYellowCard(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doYellowCard: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doYellowCard: %s : %s\n", event.Id, event.Timestamp)
 	if player, ok := players[event.PlayerId]; ok {
 		slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
 			slack.MsgOptionText(
@@ -348,7 +375,7 @@ func doYellowCard(match *Match, event fifa.EventResponse) {
 }
 
 func doRedCard(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doRedCard: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doRedCard: %s : %s\n", event.Id, event.Timestamp)
 	if player, ok := players[event.PlayerId]; ok {
 		slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
 			slack.MsgOptionText(
@@ -373,7 +400,7 @@ func doRedCard(match *Match, event fifa.EventResponse) {
 }
 
 func doSubstitution(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doSubstitution: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doSubstitution: %s : %s\n", event.Id, event.Timestamp)
 	var playerIn Player
 	var playerOut Player
 	var ok bool
@@ -415,7 +442,7 @@ func doSubstitution(match *Match, event fifa.EventResponse) {
 }
 
 func doAwardPenalty(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doAwardPenalty: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doAwardPenalty: %s : %s\n", event.Id, event.Timestamp)
 	if player, ok := players[event.PlayerId]; ok {
 		slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
 			slack.MsgOptionText(
@@ -440,7 +467,7 @@ func doAwardPenalty(match *Match, event fifa.EventResponse) {
 }
 
 func doMatchStart(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doMatchStart: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doMatchStart: %s : %s\n", event.Id, event.Timestamp)
 	switch event.Period {
 	case fifa.FIRST:
 		slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
@@ -466,7 +493,7 @@ func doMatchStart(match *Match, event fifa.EventResponse) {
 }
 
 func doHalfEnd(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doHalfEnd: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doHalfEnd: %s : %s\n", event.Id, event.Timestamp)
 	switch event.Period {
 	case fifa.FIRST:
 		slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
@@ -501,7 +528,7 @@ func doHalfEnd(match *Match, event fifa.EventResponse) {
 }
 
 func doGoalAttempt(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doGoalAttempt: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doGoalAttempt: %s : %s\n", event.Id, event.Timestamp)
 	var attacker Player
 	var defender Player
 	var ok bool
@@ -543,7 +570,7 @@ func doGoalAttempt(match *Match, event fifa.EventResponse) {
 }
 
 func doOffside(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doOffside: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doOffside: %s : %s\n", event.Id, event.Timestamp)
 
 	if player, ok := players[event.PlayerId]; ok {
 		slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
@@ -569,7 +596,7 @@ func doOffside(match *Match, event fifa.EventResponse) {
 }
 
 func doCorner(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doCorner: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doCorner: %s : %s\n", event.Id, event.Timestamp)
 	if player, ok := players[event.PlayerId]; ok {
 		slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
 			slack.MsgOptionText(
@@ -594,7 +621,7 @@ func doCorner(match *Match, event fifa.EventResponse) {
 }
 
 func doFoul(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doFoul: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doFoul: %s : %s\n", event.Id, event.Timestamp)
 	if player, ok := players[event.PlayerId]; ok {
 		slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
 			slack.MsgOptionText(
@@ -619,7 +646,7 @@ func doFoul(match *Match, event fifa.EventResponse) {
 }
 
 func doMatchEnd(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doMatchEnd: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doMatchEnd: %s : %s\n", event.Id, event.Timestamp)
 	slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
 		slack.MsgOptionText(
 			fmt.Sprintf(":referee: *%s* - End of the match with a final score of *%s* %d - %d *%s*.", event.MatchMinute, match.HomeTeam, event.HomeGoals, event.AwayGoals, match.AwayTeam),
@@ -634,7 +661,7 @@ func doMatchEnd(match *Match, event fifa.EventResponse) {
 }
 
 func doPenaltyMissed(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doPenaltyMissed: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doPenaltyMissed: %s : %s\n", event.Id, event.Timestamp)
 	var attacker Player
 	var goalie Player
 	var ok bool
@@ -661,7 +688,7 @@ func doPenaltyMissed(match *Match, event fifa.EventResponse) {
 }
 
 func doVAR(match *Match, event fifa.EventResponse) {
-	fmt.Printf("doVar: %s : %s\n", event.Id, event.Timestamp)
+	logrus.Debugf("doVar: %s : %s\n", event.Id, event.Timestamp)
 	slackapi.PostMessage(os.Getenv("SLACK_OUTPUT_CHANNEL"),
 		slack.MsgOptionText(
 			fmt.Sprintf(":robot_face: *%s* - VAR Event: %s.", event.MatchMinute, event.EventDescription[0].Description),

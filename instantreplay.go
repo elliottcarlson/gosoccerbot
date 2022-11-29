@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -12,6 +11,7 @@ import (
 	fifa "github.com/ImDevinC/go-fifa"
 	"github.com/avast/retry-go/v4"
 	"github.com/gocolly/colly/v2"
+	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
 	snoo "github.com/vartanbeno/go-reddit/v2/reddit"
 )
@@ -35,7 +35,7 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 				query = fmt.Sprintf("\"%s %d - [%d] %s\"", match.HomeTeam, event.HomeGoals, event.AwayGoals, match.AwayTeam)
 			}
 
-			fmt.Printf("Searching for replay video: %s\n", query)
+			logrus.Debug("Searching for replay video: %s\n", query)
 
 			posts, _, err := reddit.Subreddit.SearchPosts(ctx, query, "soccer", &snoo.ListPostSearchOptions{
 				ListPostOptions: snoo.ListPostOptions{
@@ -69,7 +69,7 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 								title = fmt.Sprintf("Replay of the goal at %s", event.MatchMinute)
 							}
 
-							fmt.Printf("Uploading %s\n", title)
+							logrus.Debugf("Uploading %s to Slack\n", title)
 
 							_, err = slackapi.UploadFile(slack.FileUploadParameters{
 								File:  "media/" + r.FileName(),
@@ -81,31 +81,31 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 							})
 
 							if err != nil {
-								fmt.Println(err)
+								logrus.Debug(err)
 							}
 							os.Remove("media/" + r.FileName())
 						})
 						d.OnRequest(func(r *colly.Request) {
-							fmt.Println("Downloading", r.URL)
+							logrus.Debugf("Downloading", r.URL)
 						})
 						d.Visit(e.Attr("src"))
 					})
 
 					c.OnRequest(func(r *colly.Request) {
-						fmt.Println("Visiting", r.URL)
+						logrus.Debugf("Visiting", r.URL)
 					})
 
 					c.Visit(post.URL)
 					return nil
 				} else {
-					fmt.Println(post.URL)
+					logrus.Debugf("Unsupported download URL found: %s", post.URL)
 				}
 			}
 
 			return errors.New("none found")
 		},
 		retry.OnRetry(func(n uint, err error) {
-			log.Printf("Retry #%d: %s\n", n, err)
+			logrus.Debugf("Search attempt #%d: %s\n", n, err)
 		}),
 		retry.Attempts(uint((10*time.Minute)/(15*time.Second))),
 		retry.Delay(15*time.Second),
