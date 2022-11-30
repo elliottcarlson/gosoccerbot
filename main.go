@@ -36,6 +36,7 @@ type Match struct {
 	AwayFlag      string
 	SlackThreadTs string
 	LastEventTs   time.Time
+	LastEventType int
 	LastEventId   int
 	IsOver        bool
 }
@@ -267,20 +268,14 @@ func checkMatchEvents() {
 			continue
 		}
 
-		lastEventType := -1
-
 		for _, event := range events.Events {
-			if event.Timestamp.After(match.LastEventTs) || event.Timestamp.Equal(match.LastEventTs) {
+			if (event.Timestamp.After(match.LastEventTs) || event.Timestamp.Equal(match.LastEventTs)) && match.LastEventType != int(event.Type) {
 				if event.Type == 9999 {
 					return
 				}
 
-				if int(event.Type) == lastEventType {
-					continue
-				}
-
 				match.LastEventTs = event.Timestamp
-				lastEventType = int(event.Type)
+				match.LastEventType = int(event.Type)
 
 				if method, ok := eventMap[event.Type]; ok {
 					if method != nil {
