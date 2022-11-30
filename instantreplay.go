@@ -35,7 +35,7 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 				query = fmt.Sprintf("\"%s %d - [%d] %s\"", match.HomeTeam, event.HomeGoals, event.AwayGoals, match.AwayTeam)
 			}
 
-			logrus.Debug("Searching for replay video: %s\n", query)
+			logrus.Debugf("Searching for replay video: %s\n", query)
 
 			posts, _, err := reddit.Subreddit.SearchPosts(ctx, query, "soccer", &snoo.ListPostSearchOptions{
 				ListPostOptions: snoo.ListPostOptions{
@@ -60,7 +60,10 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 							colly.MaxBodySize(100 * 1024 * 1024),
 						)
 						d.OnResponse(func(r *colly.Response) {
-							r.Save("media/" + r.FileName())
+							err := r.Save("media/" + r.FileName())
+							if err != nil {
+								logrus.Errorf("Unable to save %s: %v", r.FileName(), err)
+							}
 
 							var title string
 							if player, ok := players[event.PlayerId]; ok {
@@ -81,18 +84,18 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 							})
 
 							if err != nil {
-								logrus.Debug(err)
+								logrus.Debugf("Error uploading %s to Slack: %v", r.FileName(), err)
 							}
 							os.Remove("media/" + r.FileName())
 						})
 						d.OnRequest(func(r *colly.Request) {
-							logrus.Debugf("Downloading", r.URL)
+							logrus.Debugf("Downloading %s", r.URL)
 						})
 						d.Visit(e.Attr("src"))
 					})
 
 					c.OnRequest(func(r *colly.Request) {
-						logrus.Debugf("Visiting", r.URL)
+						logrus.Debugf("Potential match found; Visiting %s", r.URL)
 					})
 
 					c.Visit(post.URL)
