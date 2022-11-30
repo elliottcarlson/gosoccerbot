@@ -23,6 +23,7 @@ var slackapi = slack.New(
 var fifaapi = &fifa.Client{}
 
 var matches = map[string]*Match{}
+var seen = map[string]bool{}
 
 type Match struct {
 	Competition   string
@@ -269,10 +270,16 @@ func checkMatchEvents() {
 		}
 
 		for _, event := range events.Events {
+			if _, seen := seen[fmt.Sprintf("%s-%d-%s", event.Id, event.Type, event.Timestamp)]; seen {
+				continue
+			}
+
 			if (event.Timestamp.After(match.LastEventTs) || event.Timestamp.Equal(match.LastEventTs)) && match.LastEventType != int(event.Type) {
 				if event.Type == 9999 {
 					return
 				}
+
+				seen[fmt.Sprintf("%s-%d-%s", event.Id, event.Type, event.Timestamp)] = true
 
 				match.LastEventTs = event.Timestamp
 				match.LastEventType = int(event.Type)
