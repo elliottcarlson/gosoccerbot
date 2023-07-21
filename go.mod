@@ -31,6 +31,7 @@ require (
 	github.com/avast/retry-go/v4 v4.3.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/gocolly/colly/v2 v2.1.0
+	github.com/jessevdk/go-flags v1.5.0
 	github.com/joho/godotenv v1.4.0
 	github.com/slack-go/slack v0.11.4
 	github.com/vartanbeno/go-reddit/v2 v2.0.1

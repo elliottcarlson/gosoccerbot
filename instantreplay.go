@@ -4,12 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	fifa "github.com/ImDevinC/go-fifa"
 	"github.com/avast/retry-go/v4"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gocolly/colly/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
@@ -30,12 +34,12 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 
 			var query string
 			if teams[event.TeamId].Name == match.HomeTeam {
-				query = fmt.Sprintf("\"%s [%d] - %d %s\"", match.HomeTeam, event.HomeGoals, event.AwayGoals, match.AwayTeam)
+				query = fmt.Sprintf("%s [%d] - %d %s", match.HomeTeam, event.HomeGoals, event.AwayGoals, match.AwayTeam)
 			} else {
-				query = fmt.Sprintf("\"%s %d - [%d] %s\"", match.HomeTeam, event.HomeGoals, event.AwayGoals, match.AwayTeam)
+				query = fmt.Sprintf("%s %d - [%d] %s", match.HomeTeam, event.HomeGoals, event.AwayGoals, match.AwayTeam)
 			}
 
-			logrus.Debugf("Searching for replay video: %s\n", query)
+			logrus.Printf("Searching for replay video: %s\n", query)
 
 			posts, _, err := reddit.Subreddit.SearchPosts(ctx, query, "soccer", &snoo.ListPostSearchOptions{
 				ListPostOptions: snoo.ListPostOptions{
@@ -49,7 +53,52 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 			}
 
 			for _, post := range posts {
-				if strings.HasPrefix(post.URL, "https://dubz.co/v") ||
+				if strings.HasPrefix(post.URL, "https://rstream.site/v") {
+					u, err := url.Parse(post.URL)
+					if err != nil {
+						fmt.Println(err)
+						return nil
+					}
+
+					video := u.Path[strings.LastIndex(u.Path, "/")+1:]
+
+					spew.Dump(video)
+
+					resp, err := http.Get(fmt.Sprintf("https://vshare.azureedge.net/vshare/%s.mp4", video))
+					if err != nil {
+						fmt.Println(err)
+						return err
+					}
+					defer resp.Body.Close()
+
+					// Create the file
+					out, err := os.Create(fmt.Sprintf("./media/%s.mp4", video))
+					if err != nil {
+						fmt.Println(err)
+						return err
+					}
+					defer out.Close()
+
+					// Write the body to file
+					io.Copy(out, resp.Body)
+
+					_, err = slackapi.UploadFile(slack.FileUploadParameters{
+						File:  out.Name(),
+						Title: fmt.Sprintf("%s - %s", "Testing...", query),
+						Channels: []string{
+							os.Getenv("SLACK_OUTPUT_CHANNEL"),
+						},
+						ThreadTimestamp: match.SlackThreadTs,
+					})
+
+					if err != nil {
+						spew.Dump(err)
+					}
+
+					os.Remove(out.Name())
+					return nil
+
+				} else if strings.HasPrefix(post.URL, "https://dubz.co/v") ||
 					strings.HasPrefix(post.URL, "https://streamin.me/v") {
 					c := colly.NewCollector(
 						colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36"),
@@ -62,7 +111,7 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 						d.OnResponse(func(r *colly.Response) {
 							err := r.Save("media/" + r.FileName())
 							if err != nil {
-								logrus.Errorf("Unable to save %s: %v", r.FileName(), err)
+								logrus.Printf("Unable to save %s: %v", r.FileName(), err)
 							}
 
 							var title string
@@ -72,7 +121,7 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 								title = fmt.Sprintf("Replay of the goal at %s", event.MatchMinute)
 							}
 
-							logrus.Debugf("Uploading %s to Slack\n", title)
+							logrus.Printf("Uploading %s to Slack\n", title)
 
 							_, err = slackapi.UploadFile(slack.FileUploadParameters{
 								File:  "media/" + r.FileName(),
@@ -114,5 +163,4 @@ func FindInstantReplay(match *Match, event fifa.EventResponse) {
 		retry.Delay(15*time.Second),
 		retry.DelayType(retry.FixedDelay),
 	)
-
 }
